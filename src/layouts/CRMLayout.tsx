@@ -44,6 +44,7 @@ export default function CRMLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const sidebarNavRef = useRef<HTMLDivElement>(null);
   const { pathname } = useLocation();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -58,6 +59,23 @@ export default function CRMLayout() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Preserve sidebar scroll position when navigating
+  useEffect(() => {
+    if (sidebarNavRef.current) {
+      const savedScrollPosition = sessionStorage.getItem('sidebar-scroll-position');
+      if (savedScrollPosition) {
+        sidebarNavRef.current.scrollTop = parseInt(savedScrollPosition, 10);
+      }
+    }
+  }, [pathname]);
+
+  // Save sidebar scroll position before unload or navigation
+  const handleNavScroll = () => {
+    if (sidebarNavRef.current) {
+      sessionStorage.setItem('sidebar-scroll-position', sidebarNavRef.current.scrollTop.toString());
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -98,7 +116,7 @@ export default function CRMLayout() {
         {!collapsed && <span className="font-heading font-bold text-sidebar-foreground">HireEdge CRM</span>}
       </div>
 
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-hide">
+      <nav ref={sidebarNavRef} onScroll={handleNavScroll} className="flex-1 p-3 space-y-1 overflow-y-auto scrollbar-hide">
         {menuItems.map(item => {
           const active = pathname === item.path;
           return (

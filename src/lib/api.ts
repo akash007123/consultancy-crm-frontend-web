@@ -1722,4 +1722,80 @@ function downloadAsPDF(data: Record<string, string>[], filename: string): void {
   }
 }
 
+// Dashboard Stats types
+export interface DashboardStats {
+  totalEmployees: number;
+  activeEmployees: number;
+  totalClients: number;
+  candidates: number;
+  dailyVisits: number;
+  attendanceRate: number;
+  salesOrders: number;
+  expenses: number;
+}
+
+export interface MonthlyVisit {
+  month: string;
+  visits: number;
+}
+
+export interface DailyAttendance {
+  day: string;
+  present: number;
+  absent: number;
+}
+
+export interface ExpenseByCategory {
+  category: string;
+  amount: number;
+}
+
+export interface DashboardApiResponse {
+  success: boolean;
+  data: {
+    stats: DashboardStats;
+    monthlyVisits: MonthlyVisit[];
+    weeklyAttendance: DailyAttendance[];
+    expenseBreakdown: ExpenseByCategory[];
+  };
+}
+
+// Dashboard API functions
+export const dashboardApi = {
+  // Get all dashboard data
+  getDashboardData: async (): Promise<DashboardApiResponse> => {
+    return fetchApi<DashboardApiResponse>('/dashboard/stats', {
+      method: 'GET',
+    });
+  },
+
+  // Get dashboard stats only
+  getStats: async (): Promise<{ success: boolean; data: { stats: DashboardStats } }> => {
+    return fetchApi<{ success: boolean; data: { stats: DashboardStats } }>('/dashboard/stats', {
+      method: 'GET',
+    });
+  },
+
+  // Get monthly visits
+  getMonthlyVisits: async (): Promise<{ success: boolean; data: { monthlyVisits: MonthlyVisit[] } }> => {
+    return fetchApi<{ success: boolean; data: { monthlyVisits: MonthlyVisit[] } }>('/dashboard/monthly-visits', {
+      method: 'GET',
+    });
+  },
+
+  // Get weekly attendance
+  getWeeklyAttendance: async (): Promise<{ success: boolean; data: { weeklyAttendance: DailyAttendance[] } }> => {
+    return fetchApi<{ success: boolean; data: { weeklyAttendance: DailyAttendance[] } }>('/dashboard/weekly-attendance', {
+      method: 'GET',
+    });
+  },
+
+  // Get expense breakdown
+  getExpenseBreakdown: async (): Promise<{ success: boolean; data: { expenseBreakdown: ExpenseByCategory[] } }> => {
+    return fetchApi<{ success: boolean; data: { expenseBreakdown: ExpenseByCategory[] } }>('/dashboard/expense-breakdown', {
+      method: 'GET',
+    });
+  },
+};
+
 export default authApi;
