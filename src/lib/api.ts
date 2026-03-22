@@ -1894,4 +1894,96 @@ export const eventsApi = {
   },
 };
 
+// Contact types
+export interface Contact {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  companyName: string | null;
+  message: string | null;
+  status: 'new' | 'contacted' | 'in-progress' | 'resolved' | 'closed';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContactApiResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    contacts?: Contact[];
+    contact?: Contact;
+    total?: number;
+  };
+}
+
+// Contact API functions
+export const contactApi = {
+  // Submit contact form (public - no auth required)
+  submit: async (data: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    companyName?: string;
+    message?: string;
+  }): Promise<ContactApiResponse> => {
+    return fetchApi<ContactApiResponse>('/contacts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Get all contacts (requires auth)
+  getAll: async (params?: { status?: string; search?: string }): Promise<ContactApiResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
+    
+    const queryString = queryParams.toString();
+    return fetchApi<ContactApiResponse>(`/contacts${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+
+  // Get single contact (requires auth)
+  getById: async (id: number): Promise<ContactApiResponse> => {
+    return fetchApi<ContactApiResponse>(`/contacts/${id}`, {
+      method: 'GET',
+    });
+  },
+
+  // Update contact (requires auth)
+  update: async (id: number, data: Partial<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    companyName: string;
+    message: string;
+    status: 'new' | 'contacted' | 'in-progress' | 'resolved' | 'closed';
+  }>): Promise<ContactApiResponse> => {
+    return fetchApi<ContactApiResponse>(`/contacts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Delete contact (requires auth)
+  delete: async (id: number): Promise<{ success: boolean; message: string }> => {
+    return fetchApi<{ success: boolean; message: string }>(`/contacts/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Update contact status (requires auth)
+  updateStatus: async (id: number, status: 'new' | 'contacted' | 'in-progress' | 'resolved' | 'closed'): Promise<ContactApiResponse> => {
+    return fetchApi<ContactApiResponse>(`/contacts/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+};
+
 export default authApi;

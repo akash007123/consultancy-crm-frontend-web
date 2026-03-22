@@ -3,7 +3,7 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Clock, MapPin, Building2, ListChecks,
   Receipt, CalendarDays, Package, FileText, Settings, LogOut, ChevronLeft, ChevronRight, Briefcase, Menu,
-  Fuel, Wallet, UserCheck, BarChart3, ArrowUpDown, Calendar1, User
+  Fuel, Wallet, UserCheck, BarChart3, ArrowUpDown, Calendar1, User, MessageSquare
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
@@ -26,6 +26,7 @@ const menuItems = [
   { label: 'GPS Tracking', icon: MapPin, path: '/crm/tracking' },
   { label: 'Visits & DSR', icon: CalendarDays, path: '/crm/visits' },
   { label: 'Clients', icon: Building2, path: '/crm/clients' },
+  { label: 'Contact Submissions', icon: MessageSquare, path: '/crm/contacts' },
   { label: 'Tasks', icon: ListChecks, path: '/crm/tasks' },
   { label: 'HR Panel', icon: UserCheck, path: '/crm/hr-panel' },
   { label: 'Expenses', icon: Receipt, path: '/crm/expenses' },

@@ -5,19 +5,65 @@ import { Textarea } from '@/components/ui/textarea';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { contactApi } from '@/lib/api';
 
 const fadeUp = { initial: { opacity: 0, y: 30 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true }, transition: { duration: 0.6 } };
 
+interface FormData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  companyName: string;
+  message: string;
+}
+
 export default function ContactPage() {
   const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState<FormData>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    companyName: '',
+    message: '',
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+
+    try {
+      await contactApi.submit({
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        companyName: formData.companyName,
+        message: formData.message,
+      });
+      
       toast.success('Thank you! We will get back to you shortly.');
-    }, 1000);
+      // Reset form
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        companyName: '',
+        message: '',
+      });
+    } catch (error) {
+      console.error('Contact form error:', error);
+      toast.error('Failed to send message. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -39,13 +85,51 @@ export default function ContactPage() {
             <h2 className="text-2xl font-heading font-bold text-foreground mb-6">Get in Touch</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Input placeholder="First Name" required />
-                <Input placeholder="Last Name" required />
+                <Input 
+                  placeholder="First Name" 
+                  required 
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                />
+                <Input 
+                  placeholder="Last Name" 
+                  required 
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                />
               </div>
-              <Input type="email" placeholder="Email Address" required />
-              <Input type="tel" placeholder="Phone Number" required />
-              <Input placeholder="Company Name" />
-              <Textarea placeholder="Tell us about your requirements..." rows={4} required />
+              <Input 
+                type="email" 
+                placeholder="Email Address" 
+                required 
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+              />
+              <Input 
+                type="tel" 
+                placeholder="Phone Number" 
+                required 
+                name="phone"
+                value={formData.phone}
+                onChange={handleChange}
+              />
+              <Input 
+                placeholder="Company Name" 
+                name="companyName"
+                value={formData.companyName}
+                onChange={handleChange}
+              />
+              <Textarea 
+                placeholder="Tell us about your requirements..." 
+                rows={4} 
+                required 
+                name="message"
+                value={formData.message}
+                onChange={handleChange}
+              />
               <Button type="submit" className="w-full gradient-hero text-primary-foreground border-0" disabled={loading}>
                 {loading ? 'Sending...' : 'Send Message'}
               </Button>

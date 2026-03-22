@@ -37,6 +37,7 @@ import TADA from "./pages/crm/TADA";
 import PetrolAllowance from "./pages/crm/PetrolAllowance";
 import MasterStock from "./pages/crm/MasterStock";
 import Invoice from "./pages/crm/Invoice";
+import Contacts from "./pages/crm/Contacts";
 import Reports from "./pages/crm/Reports";
 import Calendar from "./pages/crm/Calendar";
 
@@ -95,6 +96,7 @@ function AppRoutes() {
         <Route path="master-stock" element={<MasterStock />} />
         <Route path="orders" element={<Orders />} />
         <Route path="invoices" element={<Invoice />} />
+        <Route path="contacts" element={<Contacts />} />
         <Route path="reports" element={<Reports />} />
         <Route path="calendar" element={<Calendar />} />
         <Route path="settings" element={<Settings />} />
