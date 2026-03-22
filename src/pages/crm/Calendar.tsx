@@ -23,7 +23,7 @@ import { Plus, Calendar as CalendarIcon, Clock, User, Tag, X, Loader2 } from 'lu
 import AttendanceFilter, { ViewType } from '@/components/AttendanceFilter';
 import AttendanceModal from '@/components/AttendanceModal';
 import CalendarEvents from '@/components/CalendarEvents';
-import { attendanceApi, AttendanceRecord } from '@/lib/api';
+import { attendanceApi, AttendanceRecord, eventsApi, CalendarEvent as ApiCalendarEvent } from '@/lib/api';
 
 // Event type definition
 interface CalendarEvent {
@@ -42,74 +42,32 @@ interface CalendarEvent {
   };
 }
 
-// Sample events for demonstration
-const sampleEvents: CalendarEvent[] = [
-  {
-    id: '1',
-    title: 'Team Meeting',
-    start: new Date(new Date().setDate(new Date().getDate() + 1)),
-    allDay: true,
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6',
+// Color mapping for event types
+const eventColors: Record<string, string> = {
+  meeting: '#3b82f6',
+  task: '#ef4444',
+  reminder: '#10b981',
+  event: '#8b5cf6'
+};
+
+// Convert API event to calendar event format
+const convertApiEventToCalendarEvent = (apiEvent: ApiCalendarEvent): CalendarEvent => {
+  return {
+    id: String(apiEvent.id),
+    title: apiEvent.title,
+    start: apiEvent.eventDate,
+    end: apiEvent.endTime ? `${apiEvent.eventDate}T${apiEvent.endTime}` : undefined,
+    allDay: apiEvent.allDay,
+    backgroundColor: eventColors[apiEvent.type] || '#6b7280',
+    borderColor: eventColors[apiEvent.type] || '#6b7280',
     extendedProps: {
-      description: 'Weekly team sync-up',
-      type: 'meeting',
-      assignedTo: 'All Team',
-      location: 'Conference Room A'
+      description: apiEvent.description || '',
+      type: apiEvent.type,
+      assignedTo: apiEvent.assignedTo || '',
+      location: apiEvent.location || ''
     }
-  },
-  {
-    id: '2',
-    title: 'Client Presentation',
-    start: new Date(new Date().setDate(new Date().getDate() + 3)),
-    backgroundColor: '#8b5cf6',
-    borderColor: '#8b5cf6',
-    extendedProps: {
-      description: 'Q1 Review with ABC Corp',
-      type: 'meeting',
-      assignedTo: 'John Doe',
-      location: 'Client Office'
-    }
-  },
-  {
-    id: '3',
-    title: 'Project Deadline',
-    start: new Date(new Date().setDate(new Date().getDate() + 5)),
-    allDay: true,
-    backgroundColor: '#ef4444',
-    borderColor: '#ef4444',
-    extendedProps: {
-      description: 'Submit final deliverables',
-      type: 'task',
-      assignedTo: 'Development Team'
-    }
-  },
-  {
-    id: '4',
-    title: 'Follow-up Call',
-    start: new Date(new Date().setDate(new Date().getDate() - 2)),
-    backgroundColor: '#10b981',
-    borderColor: '#10b981',
-    extendedProps: {
-      description: 'Follow-up with leads',
-      type: 'reminder',
-      assignedTo: 'Sales Team'
-    }
-  },
-  {
-    id: '5',
-    title: 'Training Session',
-    start: new Date(new Date().setDate(new Date().getDate() + 7)),
-    backgroundColor: '#f59e0b',
-    borderColor: '#f59e0b',
-    extendedProps: {
-      description: 'New employee onboarding',
-      type: 'event',
-      assignedTo: 'HR Department',
-      location: 'Training Room'
-    }
-  }
-];
+  };
+};
 
 // Event type badge colors
 const getEventTypeColor = (type?: string) => {
@@ -204,7 +162,8 @@ const getTotalTimeColor = (totalTime: string | undefined, status: string) => {
 
 export default function Calendar() {
   const calendarRef = useRef<FullCalendar>(null);
-  const [events, setEvents] = useState<CalendarEvent[]>(sampleEvents);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
   const [isAddEventOpen, setIsAddEventOpen] = useState(false);
@@ -236,6 +195,29 @@ export default function Calendar() {
       fetchAttendance();
     }
   }, [viewType, selectedEmployeeId, currentMonth, currentYear]);
+
+  // Fetch events when view is events
+  useEffect(() => {
+    if (viewType === 'events') {
+      fetchEvents();
+    }
+  }, [viewType]);
+
+  // Fetch events from API
+  const fetchEvents = async () => {
+    try {
+      setIsLoadingEvents(true);
+      const response = await eventsApi.getAll();
+      if (response.success && response.data) {
+        const calendarEvents = response.data.map(convertApiEventToCalendarEvent);
+        setEvents(calendarEvents);
+      }
+    } catch (error) {
+      console.error('Error fetching events:', error);
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  };
 
   // Fetch attendance data
   const fetchAttendance = async () => {
@@ -346,47 +328,47 @@ export default function Calendar() {
   };
 
   // Handle adding new event
-  const handleAddEvent = () => {
+  const handleAddEvent = async () => {
     if (!newEvent.title || !newEvent.date) return;
 
-    const colors: Record<string, string> = {
-      meeting: '#3b82f6',
-      task: '#ef4444',
-      reminder: '#10b981',
-      event: '#8b5cf6'
-    };
-
-    const newEventObj: CalendarEvent = {
-      id: String(events.length + 1),
-      title: newEvent.title,
-      start: newEvent.date,
-      allDay: true,
-      backgroundColor: colors[newEvent.type],
-      borderColor: colors[newEvent.type],
-      extendedProps: {
+    try {
+      const response = await eventsApi.create({
+        title: newEvent.title,
         description: newEvent.description,
+        eventDate: newEvent.date,
         type: newEvent.type as 'meeting' | 'task' | 'reminder' | 'event',
         assignedTo: newEvent.assignedTo,
-        location: newEvent.location
-      }
-    };
+        location: newEvent.location,
+        allDay: true
+      });
 
-    setEvents([...events, newEventObj]);
-    setIsAddEventOpen(false);
-    setNewEvent({
-      title: '',
-      date: '',
-      type: 'event',
-      description: '',
-      assignedTo: '',
-      location: ''
-    });
+      if (response.success && response.data) {
+        // Refresh events list to get the updated data
+        await fetchEvents();
+      }
+      setIsAddEventOpen(false);
+      setNewEvent({
+        title: '',
+        date: '',
+        type: 'event',
+        description: '',
+        assignedTo: '',
+        location: ''
+      });
+    } catch (error) {
+      console.error('Error creating event:', error);
+    }
   };
 
   // Handle delete event
-  const handleDeleteEvent = (id: string) => {
-    setEvents(events.filter(e => e.id !== id));
-    setIsEventDialogOpen(false);
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      await eventsApi.delete(Number(id));
+      setEvents(events.filter(e => e.id !== id));
+      setIsEventDialogOpen(false);
+    } catch (error) {
+      console.error('Error deleting event:', error);
+    }
   };
 
   // Custom event content
@@ -464,6 +446,12 @@ export default function Calendar() {
       </Card>
 
       {/* Loading Indicator */}
+      {viewType === 'events' && isLoadingEvents && (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <span className="ml-2 text-muted-foreground">Loading events...</span>
+        </div>
+      )}
       {viewType === 'attendance' && isLoadingAttendance && (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="w-8 h-8 animate-spin text-primary" />

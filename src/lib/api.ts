@@ -1798,4 +1798,100 @@ export const dashboardApi = {
   },
 };
 
+// Calendar Event types
+export interface CalendarEvent {
+  id: number;
+  title: string;
+  description: string | null;
+  eventDate: string;
+  eventTime: string | null;
+  endTime: string | null;
+  allDay: boolean;
+  type: 'meeting' | 'task' | 'reminder' | 'event';
+  assignedTo: string | null;
+  location: string | null;
+  createdBy: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateEventRequest {
+  title: string;
+  description?: string;
+  eventDate: string;
+  eventTime?: string;
+  endTime?: string;
+  allDay?: boolean;
+  type: 'meeting' | 'task' | 'reminder' | 'event';
+  assignedTo?: string;
+  location?: string;
+}
+
+export interface UpdateEventRequest {
+  id: number;
+  title?: string;
+  description?: string;
+  eventDate?: string;
+  eventTime?: string;
+  endTime?: string;
+  allDay?: boolean;
+  type?: 'meeting' | 'task' | 'reminder' | 'event';
+  assignedTo?: string;
+  location?: string;
+}
+
+// Events API functions
+export const eventsApi = {
+  // Get all events
+  getAll: async (): Promise<{ success: boolean; data: CalendarEvent[] }> => {
+    return fetchApi<{ success: boolean; data: CalendarEvent[] }>('/events', {
+      method: 'GET',
+    });
+  },
+
+  // Get event by ID
+  getById: async (id: number): Promise<{ success: boolean; data: CalendarEvent }> => {
+    return fetchApi<{ success: boolean; data: CalendarEvent }>(`/events/${id}`, {
+      method: 'GET',
+    });
+  },
+
+  // Get events by date
+  getByDate: async (date: string): Promise<{ success: boolean; data: CalendarEvent[] }> => {
+    return fetchApi<{ success: boolean; data: CalendarEvent[] }>(`/events/date/${date}`, {
+      method: 'GET',
+    });
+  },
+
+  // Get events by date range
+  getByDateRange: async (start: string, end: string): Promise<{ success: boolean; data: CalendarEvent[] }> => {
+    return fetchApi<{ success: boolean; data: CalendarEvent[] }>(`/events/range?start=${start}&end=${end}`, {
+      method: 'GET',
+    });
+  },
+
+  // Create new event
+  create: async (event: CreateEventRequest): Promise<{ success: boolean; data: CalendarEvent; message: string }> => {
+    return fetchApi<{ success: boolean; data: CalendarEvent; message: string }>('/events', {
+      method: 'POST',
+      body: JSON.stringify(event),
+    });
+  },
+
+  // Update event
+  update: async (event: UpdateEventRequest): Promise<{ success: boolean; data: CalendarEvent; message: string }> => {
+    return fetchApi<{ success: boolean; data: CalendarEvent; message: string }>(`/events/${event.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(event),
+    });
+  },
+
+  // Delete event
+  delete: async (id: number): Promise<{ success: boolean; message: string }> => {
+    return fetchApi<{ success: boolean; message: string }>(`/events/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 export default authApi;
