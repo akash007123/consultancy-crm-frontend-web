@@ -32,6 +32,7 @@ const toFrontendUser = (backendUser: BackendUser): User => ({
   mobile: backendUser.mobile,
   role: backendUser.role,
   email: backendUser.email,
+  profilePhoto: backendUser.profilePhoto,
 });
 
 interface AuthState {

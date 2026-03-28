@@ -22,6 +22,7 @@ export interface BackendUser {
   mobile: string;
   role: 'admin' | 'sub-admin' | 'manager' | 'hr' | 'employee';
   isActive: boolean;
+  profilePhoto: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -166,6 +167,14 @@ export const authApi = {
     });
   },
 
+  // Update user profile
+  updateProfile: async (data: { name: string; email: string; mobile: string; profilePhoto?: string | null }): Promise<{ success: boolean; message: string; data: { user: BackendUser } }> => {
+    return fetchApi<{ success: boolean; message: string; data: { user: BackendUser } }>('/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
   // Check if user is authenticated (has valid token)
   isAuthenticated: (): boolean => {
     return !!getToken();
@@ -264,6 +273,7 @@ export const employeeApi = {
     instagram: string;
     otherSocial: string;
     password: string;
+    profilePhoto: string | null;
   }>): Promise<EmployeeApiResponse> => {
     return fetchApi<EmployeeApiResponse>(`/employees/${id}`, {
       method: 'PUT',
