@@ -3,8 +3,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { FileText, Calendar, User, CreditCard, Printer, Edit, Trash2 } from 'lucide-react';
-import { Invoice } from '@/lib/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FileText, Calendar, User, CreditCard, Printer, Edit, Trash2, ShoppingCart, Loader2, DollarSign } from 'lucide-react';
+import { Invoice, invoiceApi, PaymentMethod } from '@/lib/api';
+import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface InvoiceViewModalProps {
   open: boolean;
@@ -12,6 +15,7 @@ interface InvoiceViewModalProps {
   invoice: Invoice | null;
   onEdit?: () => void;
   onDelete?: () => void;
+  onSuccess?: () => void;
 }
 
 export default function InvoiceViewModal({ 
@@ -19,8 +23,12 @@ export default function InvoiceViewModal({
   onOpenChange, 
   invoice, 
   onEdit, 
-  onDelete 
+  onDelete,
+  onSuccess 
 }: InvoiceViewModalProps) {
+  const [processingPayment, setProcessingPayment] = useState(false);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>('Cash');
+  
   if (!invoice) return null;
 
   const getStatusColor = (status: string) => {
@@ -90,6 +98,7 @@ export default function InvoiceViewModal({
             <p><strong>Company:</strong> ${invoice.clientCompany}</p>
             <p><strong>Date:</strong> ${formatDate(invoice.date)}</p>
             ${invoice.dueDate ? `<p><strong>Due Date:</strong> ${formatDate(invoice.dueDate)}</p>` : ''}
+            ${invoice.orderId ? `<p><strong>Order Ref:</strong> #${invoice.orderId}</p>` : ''}
           </div>
 
           <table>
@@ -115,7 +124,8 @@ export default function InvoiceViewModal({
 
           <div class="totals">
             <p>Subtotal: ₹${invoice.amount.toLocaleString()}</p>
-            <p>Tax: ₹${invoice.tax.toLocaleString()}</p>
+            <p>Tax (GST): ₹${invoice.tax.toLocaleString()}</p>
+            ${invoice.discount > 0 ? `<p>Discount: -₹${invoice.discount.toLocaleString()}</p>` : ''}
             <p class="total-row">Total: ₹${invoice.total.toLocaleString()}</p>
           </div>
 
@@ -126,6 +136,27 @@ export default function InvoiceViewModal({
     `);
     printWindow.document.close();
     printWindow.print();
+  };
+
+  const handlePayment = async () => {
+    setProcessingPayment(true);
+    try {
+      const response = await invoiceApi.updatePayment(invoice.id, {
+        paymentMethod: selectedPaymentMethod
+      });
+      if (response.success) {
+        toast.success('Payment recorded successfully!');
+        if (onSuccess) onSuccess();
+        onOpenChange(false);
+      } else {
+        toast.error(response.message || 'Failed to record payment');
+      }
+    } catch (error) {
+      console.error('Error recording payment:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to record payment');
+    } finally {
+      setProcessingPayment(false);
+    }
   };
 
   return (
@@ -150,7 +181,7 @@ export default function InvoiceViewModal({
           </div>
 
           {/* Client & Date Info */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             <Card className="shadow-sm">
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
@@ -174,6 +205,18 @@ export default function InvoiceViewModal({
                 )}
               </CardContent>
             </Card>
+
+            {invoice.orderId && (
+              <Card className="shadow-sm">
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <ShoppingCart className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Order Reference</span>
+                  </div>
+                  <p className="font-medium text-sm">Order #{invoice.orderId}</p>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Invoice Items */}
@@ -208,9 +251,15 @@ export default function InvoiceViewModal({
                 <span>₹{invoice.amount.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Tax</span>
+                <span className="text-muted-foreground">Tax (GST)</span>
                 <span>₹{invoice.tax.toLocaleString()}</span>
               </div>
+              {invoice.discount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Discount</span>
+                  <span>-₹{invoice.discount.toLocaleString()}</span>
+                </div>
+              )}
               <Separator />
               <div className="flex justify-between font-bold">
                 <span>Total</span>
@@ -242,6 +291,51 @@ export default function InvoiceViewModal({
                 </Card>
               )}
             </div>
+          )}
+
+          {/* Payment Section - Only show for Pending invoices */}
+          {invoice.status === 'Pending' && (
+            <Card className="border-primary/50 bg-primary/5">
+              <CardContent className="p-4">
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                  <div className="flex-1">
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-primary" />
+                      Record Payment
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      Mark this invoice as paid
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Select 
+                      value={selectedPaymentMethod} 
+                      onValueChange={(value) => setSelectedPaymentMethod(value as PaymentMethod)}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue placeholder="Payment Method" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Cash">Cash</SelectItem>
+                        <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="Cheque">Cheque</SelectItem>
+                        <SelectItem value="UPI">UPI</SelectItem>
+                        <SelectItem value="Credit Card">Credit Card</SelectItem>
+                        <SelectItem value="Debit Card">Debit Card</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      onClick={handlePayment}
+                      disabled={processingPayment}
+                      className="bg-success hover:bg-success/90"
+                    >
+                      {processingPayment && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Mark as Paid
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {/* Action Buttons */}

@@ -1426,6 +1426,7 @@ export interface InvoiceItem {
 export interface Invoice {
   id: number;
   invoiceNumber: string;
+  orderId: number | null;
   clientId: number;
   clientName: string;
   clientCompany: string;
@@ -1433,6 +1434,7 @@ export interface Invoice {
   dueDate: string | null;
   amount: number;
   tax: number;
+  discount: number;
   total: number;
   status: InvoiceStatus;
   items: InvoiceItem[];
@@ -1473,6 +1475,29 @@ export const invoiceApi = {
   getById: async (id: number): Promise<InvoiceApiResponse> => {
     return fetchApi<InvoiceApiResponse>(`/invoices/${id}`, {
       method: 'GET',
+    });
+  },
+
+  // Generate invoice from order
+  generateFromOrder: async (orderId: number, data?: {
+    taxRate?: number;
+    discount?: number;
+    dueDate?: string;
+  }): Promise<InvoiceApiResponse> => {
+    return fetchApi<InvoiceApiResponse>(`/invoices/generate/${orderId}`, {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
+    });
+  },
+
+  // Update payment status
+  updatePayment: async (id: number, data: {
+    paymentMethod: PaymentMethod;
+    paidDate?: string;
+  }): Promise<InvoiceApiResponse> => {
+    return fetchApi<InvoiceApiResponse>(`/invoices/${id}/pay`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
   },
 
@@ -1760,6 +1785,26 @@ export interface DashboardApiResponse {
   };
 }
 
+// Section Counts types
+export interface SectionCounts {
+  contacts: number;
+  tasks: number;
+  orders: number;
+  products: number;
+}
+
+// Recent Contact types
+export interface RecentContact {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  companyName: string | null;
+  status: string;
+  createdAt: string;
+}
+
 // Dashboard API functions
 export const dashboardApi = {
   // Get all dashboard data
@@ -1793,6 +1838,20 @@ export const dashboardApi = {
   // Get expense breakdown
   getExpenseBreakdown: async (): Promise<{ success: boolean; data: { expenseBreakdown: ExpenseByCategory[] } }> => {
     return fetchApi<{ success: boolean; data: { expenseBreakdown: ExpenseByCategory[] } }>('/dashboard/expense-breakdown', {
+      method: 'GET',
+    });
+  },
+
+  // Get section counts
+  getSectionCounts: async (): Promise<{ success: boolean; data: { sectionCounts: SectionCounts } }> => {
+    return fetchApi<{ success: boolean; data: { sectionCounts: SectionCounts } }>('/dashboard/section-counts', {
+      method: 'GET',
+    });
+  },
+
+  // Get recent contacts
+  getRecentContacts: async (): Promise<{ success: boolean; data: { recentContacts: RecentContact[] } }> => {
+    return fetchApi<{ success: boolean; data: { recentContacts: RecentContact[] } }>('/dashboard/recent-contacts', {
       method: 'GET',
     });
   },
@@ -1982,6 +2041,226 @@ export const contactApi = {
     return fetchApi<ContactApiResponse>(`/contacts/${id}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status }),
+    });
+  },
+};
+
+// ==================== ORDER MANAGEMENT TYPES ====================
+
+export type OrderStatus = 'Pending' | 'Approved' | 'Dispatched' | 'Delivered' | 'Cancelled';
+
+export interface OrderProduct {
+  id: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  price: number;
+  subtotal: number;
+}
+
+export interface OrderStatusHistory {
+  status: OrderStatus;
+  changedAt: string;
+  changedBy: number;
+  changedByName?: string;
+}
+
+export interface Order {
+  id: number;
+  orderNumber: string;
+  customerId: number;
+  customerName: string;
+  customerCompany?: string;
+  products: OrderProduct[];
+  totalAmount: number;
+  status: OrderStatus;
+  createdBy: number;
+  createdByName?: string;
+  updatedBy?: number;
+  statusHistory: OrderStatusHistory[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Product {
+  id: number;
+  name: string;
+  price: number;
+  stock: number;
+  unit: string;
+  description?: string;
+  minQuantity: number;
+  status: 'In Stock' | 'Low Stock' | 'Out of Stock';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrderApiResponse {
+  success: boolean;
+  message?: string;
+  data?: {
+    orders?: Order[];
+    order?: Order;
+    products?: Product[];
+    total?: number;
+  };
+  error?: string;
+}
+
+// Product API functions
+export const productApi = {
+  // Get all products
+  getAll: async (params?: {
+    search?: string;
+    status?: string;
+    isActive?: boolean;
+  }): Promise<OrderApiResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.isActive !== undefined) queryParams.append('isActive', params.isActive.toString());
+    
+    const queryString = queryParams.toString();
+    return fetchApi<OrderApiResponse>(`/products${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+
+  // Get single product by ID
+  getById: async (id: number): Promise<OrderApiResponse> => {
+    return fetchApi<OrderApiResponse>(`/products/${id}`, {
+      method: 'GET',
+    });
+  },
+
+  // Create new product
+  create: async (data: {
+    name: string;
+    price: number;
+    stock: number;
+    unit: string;
+    description?: string;
+    minQuantity?: number;
+  }): Promise<OrderApiResponse> => {
+    return fetchApi<OrderApiResponse>('/products', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Update product
+  update: async (id: number, data: Partial<{
+    name: string;
+    price: number;
+    stock: number;
+    unit: string;
+    description: string;
+    minQuantity: number;
+  }>): Promise<OrderApiResponse> => {
+    return fetchApi<OrderApiResponse>(`/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Delete product
+  delete: async (id: number): Promise<{ success: boolean; message: string }> => {
+    return fetchApi<{ success: boolean; message: string }>(`/products/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Toggle product active status
+  toggle: async (id: number): Promise<OrderApiResponse> => {
+    return fetchApi<OrderApiResponse>(`/products/${id}/toggle`, {
+      method: 'PATCH',
+    });
+  },
+};
+
+// Order API functions
+export const orderApi = {
+  // Get all orders
+  getAll: async (params?: {
+    status?: string;
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    customerId?: number;
+  }): Promise<OrderApiResponse> => {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.customerId) queryParams.append('customerId', params.customerId.toString());
+    
+    const queryString = queryParams.toString();
+    return fetchApi<OrderApiResponse>(`/orders${queryString ? `?${queryString}` : ''}`, {
+      method: 'GET',
+    });
+  },
+
+  // Get single order by ID
+  getById: async (id: number): Promise<OrderApiResponse> => {
+    return fetchApi<OrderApiResponse>(`/orders/${id}`, {
+      method: 'GET',
+    });
+  },
+
+  // Create new order
+  create: async (data: {
+    customerId: number;
+    products: {
+      productId: number;
+      quantity: number;
+      price: number;
+    }[];
+    notes?: string;
+  }): Promise<OrderApiResponse> => {
+    return fetchApi<OrderApiResponse>('/orders', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Update order (only if Pending)
+  update: async (id: number, data: Partial<{
+    customerId: number;
+    products: {
+      productId: number;
+      quantity: number;
+      price: number;
+    }[];
+    notes: string;
+  }>): Promise<OrderApiResponse> => {
+    return fetchApi<OrderApiResponse>(`/orders/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  // Update order status
+  updateStatus: async (id: number, status: OrderStatus): Promise<OrderApiResponse> => {
+    return fetchApi<OrderApiResponse>(`/orders/${id}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+
+  // Cancel order
+  cancel: async (id: number): Promise<OrderApiResponse> => {
+    return fetchApi<OrderApiResponse>(`/orders/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // Get products list for order
+  getProducts: async (search?: string): Promise<OrderApiResponse> => {
+    const queryString = search ? `?search=${encodeURIComponent(search)}` : '';
+    return fetchApi<OrderApiResponse>(`/orders/products/list${queryString}`, {
+      method: 'GET',
     });
   },
 };

@@ -30,6 +30,7 @@ import Tasks from "./pages/crm/Tasks";
 import Expenses from "./pages/crm/Expenses";
 import Stock from "./pages/crm/Stock";
 import Orders from "./pages/crm/Orders";
+import Products from "./pages/crm/Products";
 import Settings from "./pages/crm/Settings";
 import Profile from "./pages/crm/Profile";
 import HRPanel from "./pages/crm/HRPanel";
@@ -95,6 +96,7 @@ function AppRoutes() {
         <Route path="stock" element={<Stock />} />
         <Route path="master-stock" element={<MasterStock />} />
         <Route path="orders" element={<Orders />} />
+        <Route path="products" element={<Products />} />
         <Route path="invoices" element={<Invoice />} />
         <Route path="contacts" element={<Contacts />} />
         <Route path="reports" element={<Reports />} />

@@ -254,6 +254,7 @@ export default function InvoicePage() {
         invoice={selectedInvoice || null}
         onEdit={() => selectedInvoice && handleEdit(selectedInvoice)}
         onDelete={() => selectedInvoice && handleDelete(selectedInvoice)}
+        onSuccess={fetchInvoices}
       />
 
       {/* Delete Confirmation Modal */}

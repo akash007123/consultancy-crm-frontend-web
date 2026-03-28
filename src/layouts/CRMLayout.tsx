@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, Clock, MapPin, Building2, ListChecks,
-  Receipt, CalendarDays, Package, FileText, Settings, LogOut, ChevronLeft, ChevronRight, Briefcase, Menu,
+  Receipt, CalendarDays, Package, PackagePlus, FileText, Settings, LogOut, ChevronLeft, ChevronRight, Briefcase, Menu,
   Fuel, Wallet, UserCheck, BarChart3, ArrowUpDown, Calendar1, User, MessageSquare
 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
@@ -35,6 +35,7 @@ const menuItems = [
   { label: 'Distributor Stock', icon: Package, path: '/crm/stock' },
   { label: 'Master Stock', icon: ArrowUpDown, path: '/crm/master-stock' },
   { label: 'Orders', icon: FileText, path: '/crm/orders' },
+  { label: 'Products', icon: PackagePlus, path: '/crm/products' },
   { label: 'Invoices', icon: FileText, path: '/crm/invoices' },
   { label: 'Reports', icon: BarChart3, path: '/crm/reports' },
   { label: 'Settings', icon: Settings, path: '/crm/settings' },
@@ -207,7 +208,6 @@ export default function CRMLayout() {
                 <DropdownMenuTrigger asChild>
                   <button
                     className="w-8 h-8 rounded-full gradient-hero flex items-center justify-center text-xs font-bold text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background overflow-hidden"
-                    onClick={() => setProfileOpen(!profileOpen)}
                   >
                     {user?.profilePhoto ? (
                       <img
