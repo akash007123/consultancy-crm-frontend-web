@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Users, UserCheck, Building2, UserPlus, CalendarDays, Clock, ShoppingCart, Receipt,
   Mail, CheckSquare, Package, ShoppingBag, RefreshCw, TrendingUp, TrendingDown,
+  ArrowRight, Circle, Sparkles
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area, TooltipProps,
 } from 'recharts';
-import { dashboardApi, DashboardStats, MonthlyVisit, DailyAttendance, ExpenseByCategory, SectionCounts, RecentContact } from '@/lib/api';
+import { dashboardApi, DashboardStats, MonthlyVisit, DailyAttendance, ExpenseByCategory, SectionCounts, RecentContact, RecentActivity } from '@/lib/api';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -31,6 +32,201 @@ const Skeleton = ({ className = '' }: { className?: string }) => (
   <div className={`animate-pulse bg-gray-200 dark:bg-gray-700 rounded ${className}`} />
 );
 
+// Helper function for relative time formatting
+const getRelativeTime = (timestamp: string | Date): string => {
+  const now = new Date();
+  const date = new Date(timestamp);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString();
+};
+
+// Activity icon mapping with enhanced styling
+const getActivityIcon = (iconName: string, color: string) => {
+  const iconProps = { className: `w-5 h-5 ${color}` };
+  switch (iconName) {
+    case 'Building2': return <Building2 {...iconProps} />;
+    case 'Clock': return <Clock {...iconProps} />;
+    case 'Receipt': return <Receipt {...iconProps} />;
+    case 'Package': return <Package {...iconProps} />;
+    case 'ShoppingCart': return <ShoppingCart {...iconProps} />;
+    case 'CheckSquare': return <CheckSquare {...iconProps} />;
+    default: return <Sparkles {...iconProps} />;
+  }
+};
+
+// Individual activity item component with timeline
+const ActivityItem = ({ activity, index }: { activity: RecentActivity; index: number }) => {
+  const isNew = new Date(activity.timestamp).getTime() > Date.now() - 24 * 60 * 60 * 1000;
+  const relativeTime = getRelativeTime(activity.timestamp);
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.3 }}
+      whileHover={{ scale: 1.01, x: 4 }}
+      className="relative group"
+    >
+      {/* Timeline connector line (except last item) */}
+      {index !== 4 && (
+        <div className="absolute left-[23px] top-12 w-px h-full bg-gradient-to-b from-gray-200 to-transparent dark:from-gray-700" />
+      )}
+      
+      <div className="flex items-start gap-4 p-4 rounded-xl transition-all duration-300 bg-white/50 dark:bg-gray-800/30 hover:bg-white dark:hover:bg-gray-800/60 border border-transparent hover:border-gray-200/50 dark:hover:border-gray-700/50 shadow-sm hover:shadow-md">
+        {/* Icon with animated ring */}
+        <div className="relative flex-shrink-0">
+          <div className={`p-2.5 rounded-xl ${activity.color.replace('text', 'bg')}/10 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg`}>
+            {getActivityIcon(activity.icon, activity.color)}
+          </div>
+          {isNew && (
+            <span className="absolute -top-1 -right-1 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </span>
+          )}
+        </div>
+        
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center flex-wrap gap-2 mb-1">
+            <p className="text-sm font-semibold text-gray-900 dark:text-white">
+              {activity.title}
+            </p>
+            {isNew && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300">
+                New
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+            {activity.description}
+          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <Clock className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+            <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">
+              {relativeTime}
+            </span>
+          </div>
+        </div>
+        
+        {/* Decorative arrow on hover */}
+        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <ArrowRight className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Main Recent Activities & Feeds Component
+const RecentActivitiesFeed = ({ loading, recentActivities }: { loading: boolean; recentActivities: RecentActivity[] }) => {
+  const [displayCount, setDisplayCount] = useState(5);
+  const hasMore = recentActivities.length > displayCount;
+  
+  // Group activities by date
+  const groupByDate = (activities: RecentActivity[]) => {
+    const groups: { [key: string]: RecentActivity[] } = {};
+    activities.slice(0, displayCount).forEach(activity => {
+      const date = new Date(activity.timestamp);
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      let key = '';
+      if (date.toDateString() === today.toDateString()) key = 'Today';
+      else if (date.toDateString() === yesterday.toDateString()) key = 'Yesterday';
+      else key = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(activity);
+    });
+    return groups;
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-3">
+        {Array(5).fill(0).map((_, i) => (
+          <div key={i} className="flex items-start gap-4 p-4">
+            <div className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded-xl w-10 h-10" />
+            <div className="flex-1 space-y-2">
+              <div className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-4 w-3/4" />
+              <div className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-3 w-full" />
+              <div className="animate-pulse bg-gray-200 dark:bg-gray-700 rounded h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (recentActivities.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 flex items-center justify-center">
+          <RefreshCw className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+        </div>
+        <p className="text-gray-500 dark:text-gray-400 font-medium">No recent activities</p>
+        <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">Activities will appear here as they happen</p>
+      </div>
+    );
+  }
+
+  const groupedActivities = groupByDate(recentActivities);
+  const groupKeys = Object.keys(groupedActivities);
+
+  return (
+    <div className="space-y-6">
+      <AnimatePresence mode="wait">
+        {groupKeys.map((groupKey, groupIdx) => (
+          <motion.div
+            key={groupKey}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: groupIdx * 0.1 }}
+            className="space-y-2"
+          >
+            <div className="flex items-center gap-2 px-1">
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-gray-200 dark:to-gray-700" />
+              <span className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                {groupKey}
+              </span>
+              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-gray-200 dark:to-gray-700" />
+            </div>
+            <div className="space-y-3">
+              {groupedActivities[groupKey].map((activity, idx) => (
+                <ActivityItem key={activity.id} activity={activity} index={idx} />
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
+      
+      {hasMore && (
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => setDisplayCount(prev => prev + 5)}
+          className="w-full mt-4 py-3 text-center text-sm font-medium text-primary hover:text-primary/80 transition-colors border-t border-gray-100 dark:border-gray-800 pt-4"
+        >
+          Load more activities →
+        </motion.button>
+      )}
+    </div>
+  );
+};
+
 interface StatCard {
   label: string;
   value: string | number;
@@ -46,6 +242,7 @@ export default function DashboardPage() {
   const [expenseBreakdown, setExpenseBreakdown] = useState<ExpenseByCategory[]>([]);
   const [sectionCounts, setSectionCounts] = useState<SectionCounts | null>(null);
   const [recentContacts, setRecentContacts] = useState<RecentContact[]>([]);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [greeting, setGreeting] = useState('');
@@ -66,13 +263,14 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
       
-      const [statsRes, monthlyVisitsRes, weeklyAttendanceRes, expenseRes, sectionCountsRes, recentContactsRes] = await Promise.all([
+      const [statsRes, monthlyVisitsRes, weeklyAttendanceRes, expenseRes, sectionCountsRes, recentContactsRes, recentActivitiesRes] = await Promise.all([
         dashboardApi.getStats(),
         dashboardApi.getMonthlyVisits(),
         dashboardApi.getWeeklyAttendance(),
         dashboardApi.getExpenseBreakdown(),
         dashboardApi.getSectionCounts(),
-        dashboardApi.getRecentContacts()
+        dashboardApi.getRecentContacts(),
+        dashboardApi.getRecentActivities()
       ]);
 
       if (statsRes.success && statsRes.data?.stats) setStats(statsRes.data.stats);
@@ -81,6 +279,7 @@ export default function DashboardPage() {
       if (expenseRes.success && expenseRes.data?.expenseBreakdown) setExpenseBreakdown(expenseRes.data.expenseBreakdown);
       if (sectionCountsRes.success && sectionCountsRes.data?.sectionCounts) setSectionCounts(sectionCountsRes.data.sectionCounts);
       if (recentContactsRes.success && recentContactsRes.data?.recentContacts) setRecentContacts(recentContactsRes.data.recentContacts);
+      if (recentActivitiesRes.success && recentActivitiesRes.data?.recentActivities) setRecentActivities(recentActivitiesRes.data.recentActivities);
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
       setError('Failed to load dashboard data');
@@ -417,6 +616,32 @@ export default function DashboardPage() {
                 </table>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Activities & Feeds */}
+        <Card className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-gray-700/50 shadow-xl rounded-2xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
+          <CardHeader className="pb-2 border-b border-gray-100 dark:border-gray-700/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-blue-500/10 to-purple-500/10">
+                  <Sparkles className="w-5 h-5 text-blue-500" />
+                </div>
+                <CardTitle className="text-lg font-bold bg-gradient-to-r from-gray-800 to-gray-600 dark:from-gray-100 dark:to-gray-400 bg-clip-text text-transparent">
+                  Recent Activities & Feeds
+                </CardTitle>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span>Live</span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 ml-10">
+              Real-time updates from your business
+            </p>
+          </CardHeader>
+          <CardContent className="pt-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+            <RecentActivitiesFeed loading={loading} recentActivities={recentActivities} />
           </CardContent>
         </Card>
       </div>

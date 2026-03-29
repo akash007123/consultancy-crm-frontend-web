@@ -1815,6 +1815,17 @@ export interface RecentContact {
   createdAt: string;
 }
 
+// Recent Activity types
+export interface RecentActivity {
+  id: string;
+  type: string;
+  title: string;
+  description: string;
+  timestamp: string;
+  icon: string;
+  color: string;
+}
+
 // Dashboard API functions
 export const dashboardApi = {
   // Get all dashboard data
@@ -1862,6 +1873,13 @@ export const dashboardApi = {
   // Get recent contacts
   getRecentContacts: async (): Promise<{ success: boolean; data: { recentContacts: RecentContact[] } }> => {
     return fetchApi<{ success: boolean; data: { recentContacts: RecentContact[] } }>('/dashboard/recent-contacts', {
+      method: 'GET',
+    });
+  },
+
+  // Get recent activities
+  getRecentActivities: async (): Promise<{ success: boolean; data: { recentActivities: RecentActivity[] } }> => {
+    return fetchApi<{ success: boolean; data: { recentActivities: RecentActivity[] } }>('/dashboard/recent-activities', {
       method: 'GET',
     });
   },
